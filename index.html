@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ألعاب التحدي - العقل المدبر و إكس أو</title>
+    <!-- خط تجوال لدعم العربية بشكل جميل -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+    <!-- مكتبة PeerJS للعب عبر الشبكة المحلية (LAN) -->
+    <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --surface: #1e293b;
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.5);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-light: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Tajawal', sans-serif;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-light);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 100%);
+        }
+
+        /* Screen Management */
+        .screen {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            padding: 20px;
+            animation: fadeIn 0.4s ease-out forwards;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        /* Typography */
+        h1, h2, h3 { text-align: center; margin-bottom: 10px; }
+        h1 { font-size: 2.5rem; color: var(--primary); text-shadow: 0 0 20px var(--primary-glow); margin-top: 5vh; }
+        p.subtitle { text-align: center; color: var(--text-muted); margin-bottom: 20px; font-size: 1.1rem; }
+
+        /* Buttons */
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 18px 24px;
+            border-radius: 16px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 10px 20px -5px var(--primary-glow);
+            width: 100%;
+            max-width: 400px;
+            align-self: center;
+        }
+        .btn:active { transform: scale(0.95); }
+        .btn.secondary { background: var(--surface); color: var(--text-light); box-shadow: none; border: 2px solid var(--text-muted); }
+        .btn.success { background: var(--success); box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.5); }
+        .btn.danger { background: var(--danger); box-shadow: 0 10px 20px -5px rgba(239, 68, 68, 0.5); }
+        
+        .game-card {
+            padding: 25px 20px;
+            font-size: 1.4rem;
+            text-align: right;
+            direction: rtl;
+            background: var(--surface);
+            border: 2px solid var(--primary);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* Inputs & Displays */
+        .input-group { text-align: center; margin: 20px 0; }
+        input[type="number"] {
+            background: var(--surface); color: white; border: 2px solid var(--primary);
+            padding: 15px; border-radius: 12px; font-size: 1.5rem; text-align: center;
+            width: 100%; max-width: 300px; outline: none; letter-spacing: 10px; direction: ltr;
+        }
+
+        /* Numpad & Digit Display (Number Guessing Game) */
+        .digit-display { display: flex; justify-content: center; gap: 15px; margin: 20px 0; direction: ltr; }
+        .digit-box {
+            width: 70px; height: 80px; background: var(--surface);
+            border: 2px solid var(--primary); border-radius: 15px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 3rem; font-weight: bold; color: var(--primary);
+            box-shadow: 0 0 15px var(--primary-glow); transition: all 0.3s;
+        }
+        .digit-box.filled { background: var(--primary); color: white; }
+        .digit-box.error { border-color: var(--danger); animation: shake 0.4s; }
+
+        .numpad {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 12px; max-width: 350px; width: 100%; align-self: center; margin-top: auto; padding-bottom: 20px; direction: ltr;
+        }
+        .numpad button {
+            background: var(--surface); color: white; border: none; padding: 18px; font-size: 1.8rem;
+            border-radius: 15px; font-weight: bold; box-shadow: 0 5px 10px rgba(0,0,0,0.2); transition: 0.1s;
+        }
+        .numpad button:active { transform: scale(0.9); background: var(--primary); }
+        .numpad button.action { background: var(--text-muted); font-size: 1.3rem; }
+        .numpad button.submit-btn { background: var(--success); font-family: 'Tajawal', sans-serif;}
+
+        /* Game History Area (Number Game) */
+        .game-header { text-align: center; padding: 10px; border-bottom: 1px solid var(--surface); margin-bottom: 10px; }
+        .history-list {
+            flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
+            padding-bottom: 10px; scroll-behavior: smooth;
+        }
+        .history-item {
+            background: var(--surface); border-radius: 12px; padding: 12px;
+            display: flex; flex-direction: column; animation: slideUp 0.3s ease-out;
+        }
+        .history-item .guess { font-size: 1.6rem; font-weight: bold; letter-spacing: 5px; color: var(--primary); text-align: center; direction: ltr; }
+        .history-item .feedback { margin-top: 5px; font-size: 0.95rem; text-align: center; }
+        .feedback.bull { color: var(--success); }
+        .feedback.cow { color: var(--warning); }
+        .feedback.wrong { color: var(--danger); }
+
+        /* XO Game Board */
+        .xo-board {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+            width: 100%; max-width: 320px; margin: auto; direction: ltr;
+        }
+        .xo-cell {
+            background: var(--surface); border: 2px solid var(--primary); border-radius: 15px;
+            aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+            font-size: 4.5rem; font-weight: bold; cursor: pointer; transition: 0.2s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .xo-cell:active { transform: scale(0.95); }
+        .xo-cell.x { color: var(--danger); text-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
+        .xo-cell.o { color: var(--primary); text-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
+        .xo-cell.win { background: var(--success); border-color: var(--success); color: white !important; animation: popIn 0.3s; }
+
+        /* RPS Game */
+        .rps-choices {
+            display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin: auto;
+        }
+        .rps-btn {
+            background: var(--surface); border: 3px solid var(--primary); border-radius: 50%;
+            width: 110px; height: 110px; font-size: 3.5rem; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.2s; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .rps-btn:active { transform: scale(0.9); }
+        .rps-btn.selected { background: var(--primary); box-shadow: 0 0 20px var(--primary-glow); }
+
+        /* Overlays */
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.95); z-index: 50;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+        .overlay.active { display: flex; animation: fadeIn 0.3s; }
+
+        /* Toast Notifications */
+        #toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: var(--primary); color: white; padding: 12px 24px;
+            border-radius: 30px; font-weight: bold; z-index: 100;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(10px); }
+            40%, 80% { transform: translateX(-10px); }
+        }
+        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div id="toast">إشعار</div>
+
+    <!-- MAIN MENU SCREEN -->
+    <div id="menu-screen" class="screen active">
+        <h1>ألعاب التحدي</h1>
+        <p class="subtitle">تحدَّ أصدقاءك في مجموعة ألعاب ممتعة!</p>
+        
+        <div style="margin-top: auto; margin-bottom: auto; display: flex; flex-direction: column; gap: 15px;">
+            <div id="lan-container" style="display: flex; flex-direction: column; align-items: center; width: 100%;">
+                <button class="btn" onclick="hostLAN()">📶 إنشاء لعبة شبكة (LAN)</button>
+                <button class="btn secondary" onclick="showScreen('join-screen')">🔗 الانضمام للعبة شبكة</button>
+            </div>
+            
+            <div style="text-align: center; margin: 20px 0; color: var(--text-muted);">--- أو ---</div>
+            
+            <button class="btn success" onclick="startLocalPlay()">📱 اللعب معاً على نفس الجهاز</button>
+        </div>
+    </div>
+
+    <!-- GAME SELECTION SCREEN -->
+    <div id="game-selection-screen" class="screen">
+        <h2>اختر اللعبة</h2>
+        <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 30px; align-items: center;">
+            <button class="btn game-card" onclick="selectGame('number')">🔢 صراع الأرقام (الرقم السري)</button>
+            <button class="btn game-card" onclick="selectGame('xo')">❌⭕ إكس أو (Tic-Tac-Toe)</button>
+            <button class="btn game-card" onclick="selectGame('rps')">🪨📄✂️ حجر ورقة مقص</button>
+        </div>
+        <button class="btn secondary" style="margin-top: auto;" onclick="showScreen('menu-screen')">رجوع</button>
+    </div>
+
+    <!-- JOIN LAN SCREEN -->
+    <div id="join-screen" class="screen">
+        <h2>الانضمام للعبة</h2>
+        <p class="subtitle">أدخل رمز الغرفة المكون من 5 أرقام</p>
+        <div class="input-group">
+            <input type="number" id="room-code-input" placeholder="00000" maxlength="5" oninput="if(this.value.length > 5) this.value = this.value.slice(0,5);">
+        </div>
+        <button class="btn" onclick="joinLAN()">اتصال</button>
+        <button class="btn secondary" onclick="showScreen('menu-screen')">رجوع</button>
+    </div>
+
+    <!-- HOST WAITING SCREEN -->
+    <div id="host-screen" class="screen" style="justify-content: center;">
+        <h2>تم إنشاء الغرفة!</h2>
+        <p class="subtitle">شارك هذا الرمز مع خصمك:</p>
+        <h1 id="host-code-display" style="margin: 0; font-size: 4rem; letter-spacing: 10px; direction: ltr;">-----</h1>
+        <p style="text-align: center; margin-top: 30px; color: var(--warning);">في انتظار اتصال الخصم...</p>
+        <div style="margin-top: auto;">
+            <button class="btn secondary" onclick="cancelHost()">إلغاء</button>
+        </div>
+    </div>
+
+    <!-- ======================= -->
+    <!-- GAME 1: NUMBER GUESSING -->
+    <!-- ======================= -->
+    <div id="num-set-secret-screen" class="screen">
+        <h2 id="set-secret-title">اللاعب 1</h2>
+        <p class="subtitle">أدخل رقمك السري (3 أرقام)</p>
+        
+        <div class="digit-display">
+            <div class="digit-box" id="sec-dig-0"></div>
+            <div class="digit-box" id="sec-dig-1"></div>
+            <div class="digit-box" id="sec-dig-2"></div>
+        </div>
+
+        <div class="numpad">
+            <button onclick="handleNumInput(1)">1</button>
+            <button onclick="handleNumInput(2)">2</button>
+            <button onclick="handleNumInput(3)">3</button>
+            <button onclick="handleNumInput(4)">4</button>
+            <button onclick="handleNumInput(5)">5</button>
+            <button onclick="handleNumInput(6)">6</button>
+            <button onclick="handleNumInput(7)">7</button>
+            <button onclick="handleNumInput(8)">8</button>
+            <button onclick="handleNumInput(9)">9</button>
+            <button class="action" onclick="handleNumInput('clear')">مسح</button>
+            <button onclick="handleNumInput(0)">0</button>
+            <button class="submit-btn" onclick="submitSecret()">تأكيد</button>
+        </div>
+    </div>
+
+    <div id="num-game-screen" class="screen">
+        <div class="game-header">
+            <h2 id="num-turn-indicator">دورك</h2>
+        </div>
+        <div class="history-list" id="history-list"></div>
+        <div class="digit-display" style="margin: 10px 0;">
+            <div class="digit-box" id="guess-dig-0"></div>
+            <div class="digit-box" id="guess-dig-1"></div>
+            <div class="digit-box" id="guess-dig-2"></div>
+        </div>
+        <div class="numpad" style="margin-top: 0;">
+            <button onclick="handleNumInput(1)">1</button>
+            <button onclick="handleNumInput(2)">2</button>
+            <button onclick="handleNumInput(3)">3</button>
+            <button onclick="handleNumInput(4)">4</button>
+            <button onclick="handleNumInput(5)">5</button>
+            <button onclick="handleNumInput(6)">6</button>
+            <button onclick="handleNumInput(7)">7</button>
+            <button onclick="handleNumInput(8)">8</button>
+            <button onclick="handleNumInput(9)">9</button>
+            <button class="action" onclick="handleNumInput('clear')">مسح</button>
+            <button onclick="handleNumInput(0)">0</button>
+            <button class="submit-btn" onclick="submitGuess()">تخمين</button>
+        </div>
+    </div>
+
+    <!-- ======================= -->
+    <!-- GAME 2: XO (TIC-TAC-TOE)-->
+    <!-- ======================= -->
+    <div id="xo-screen" class="screen">
+        <div class="game-header">
+            <h2 id="xo-turn-indicator">دورك</h2>
+        </div>
+        <div class="xo-board">
+            <div class="xo-cell" id="xo-0" onclick="makeXOMove(0)"></div>
+            <div class="xo-cell" id="xo-1" onclick="makeXOMove(1)"></div>
+            <div class="xo-cell" id="xo-2" onclick="makeXOMove(2)"></div>
+            <div class="xo-cell" id="xo-3" onclick="makeXOMove(3)"></div>
+            <div class="xo-cell" id="xo-4" onclick="makeXOMove(4)"></div>
+            <div class="xo-cell" id="xo-5" onclick="makeXOMove(5)"></div>
+            <div class="xo-cell" id="xo-6" onclick="makeXOMove(6)"></div>
+            <div class="xo-cell" id="xo-7" onclick="makeXOMove(7)"></div>
+            <div class="xo-cell" id="xo-8" onclick="makeXOMove(8)"></div>
+        </div>
+    </div>
+
+    <!-- ======================= -->
+    <!-- GAME 3: ROCK PAPER SCISSORS -->
+    <!-- ======================= -->
+    <div id="rps-screen" class="screen">
+        <div class="game-header">
+            <h2 id="rps-turn-indicator">اختر حركتك</h2>
+        </div>
+        <div class="rps-choices">
+            <button class="rps-btn" onclick="selectRPS('rock')">🪨</button>
+            <button class="rps-btn" onclick="selectRPS('paper')">📄</button>
+            <button class="rps-btn" onclick="selectRPS('scissors')">✂️</button>
+        </div>
+    </div>
+
+    <!-- ======================= -->
+    <!-- GENERIC GAME OVER       -->
+    <!-- ======================= -->
+    <div id="game-over-screen" class="screen" style="justify-content: center;">
+        <h1 id="winner-title" style="font-size: 3.5rem; animation: popIn 0.5s;">لقد فزت!</h1>
+        <p class="subtitle" id="winner-desc" style="font-size: 1.5rem; color: white;">الوصف هنا</p>
+        <button class="btn" style="margin-top: 40px;" onclick="playAgain()">العب مرة أخرى</button>
+        <button class="btn danger" onclick="returnToMenu()">القائمة الرئيسية (إنهاء)</button>
+    </div>
+
+    <!-- OVERLAYS -->
+    <div id="pass-device-overlay" class="overlay">
+        <h2>مرر الجهاز</h2>
+        <p class="subtitle" id="pass-device-text" style="color: white; margin-top: 20px;">مرر الهاتف للاعب 2</p>
+        <button class="btn success" onclick="hideOverlay(); executePassCallback();">أنا مستعد</button>
+    </div>
+
+    <div id="waiting-overlay" class="overlay">
+        <h2>الرجاء الانتظار...</h2>
+        <p class="subtitle" style="color: white; margin-top: 20px;">الخصم يقوم بخطوته.</p>
+    </div>
+
+<script>
+    /* =========================================================
+       AUDIO & HAPTICS
+       ========================================================= */
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function playTone(freq, type, duration) {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+        osc.stop(audioCtx.currentTime + duration);
+    }
+
+    function soundBeep() { playTone(500, 'sine', 0.1); }
+    function soundError() { playTone(150, 'sawtooth', 0.3); }
+    function soundWin() { 
+        playTone(400, 'square', 0.1); 
+        setTimeout(() => playTone(600, 'square', 0.1), 100);
+        setTimeout(() => playTone(800, 'square', 0.4), 200);
+    }
+    
+    function haptic() {
+        if (navigator.vibrate) navigator.vibrate(50);
+    }
+
+    /* =========================================================
+       GLOBAL GAME STATE
+       ========================================================= */
+    const state = {
+        mode: '',         // 'local' | 'lan'
+        gameType: '',     // 'number' | 'xo' | 'rps'
+        stage: '', 
+        currentPlayer: 1,
+        myPlayerId: 1, 
+        passCallback: null,
+        
+        // Number Guessing
+        secrets: { 1: '', 2: '' }, 
+        currentInput: "",
+        p1History:[],
+        p2History:[],
+        
+        // XO
+        xoBoard:[],
+
+        // RPS
+        rpsChoices: { 1: null, 2: null }
+    };
+
+    let peer = null;
+    let conn = null;
+
+    /* =========================================================
+       UI HELPERS
+       ========================================================= */
+    function showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+    }
+
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.innerText = msg;
+        toast.style.opacity = 1;
+        setTimeout(() => { toast.style.opacity = 0; }, 3000);
+    }
+
+    function showOverlay(id) { document.getElementById(id).classList.add('active'); }
+    function hideOverlay() { document.querySelectorAll('.overlay').forEach(o => o.classList.remove('active')); }
+
+    function executePassCallback() {
+        if (state.passCallback) {
+            state.passCallback();
+            state.passCallback = null;
+        }
+    }
+
+    /* =========================================================
+       MAIN MENU & NAVIGATION
+       ========================================================= */
+    function hostLAN() {
+        state.mode = 'lan';
+        showScreen('game-selection-screen');
+    }
+
+    function startLocalPlay() {
+        state.mode = 'local';
+        showScreen('game-selection-screen');
+    }
+
+    function selectGame(type) {
+        state.gameType = type;
+        if (state.mode === 'lan') {
+            initHostPeer();
+        } else {
+            startGameRouting(type);
+        }
+    }
+
+    function returnToMenu() {
+        if(conn) { conn.close(); conn = null; }
+        if(peer) { peer.destroy(); peer = null; }
+        showScreen('menu-screen');
+    }
+
+    function playAgain() {
+        if (state.mode === 'lan') {
+            sendData({ type: 'PLAY_AGAIN' });
+        }
+        startGameRouting(state.gameType);
+    }
+
+    /* =========================================================
+       GAME ROUTER
+       ========================================================= */
+    function startGameRouting(type) {
+        hideOverlay();
+        state.stage = 'playing';
+        state.currentPlayer = 1;
+        
+        if (type === 'number') startNumberGuessingGame();
+        else if (type === 'xo') startXOGame();
+        else if (type === 'rps') startRPSGame();
+    }
+
+    function handleGameOver(winnerId, desc) {
+        hideOverlay();
+        state.stage = 'game_over';
+        soundWin();
+        if(navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
+        
+        setTimeout(() => {
+            showScreen('game-over-screen');
+            let title = document.getElementById('winner-title');
+            let descEl = document.getElementById('winner-desc');
+            descEl.innerText = desc || '';
+
+            if (winnerId === 'draw') {
+                title.innerText = "تعادل!";
+                title.style.color = "var(--warning)";
+            } 
+            else if (state.mode === 'local') {
+                title.innerText = `اللاعب ${winnerId} فاز!`;
+                title.style.color = "var(--success)";
+            } 
+            else { // LAN
+                if (winnerId === state.myPlayerId) {
+                    title.innerText = "لقد فزت!";
+                    title.style.color = "var(--success)";
+                } else {
+                    title.innerText = "لقد خسرت!";
+                    title.style.color = "var(--danger)";
+                }
+            }
+        }, 500);
+    }
+
+    /* =========================================================
+       GAME 1: NUMBER GUESSING
+       ========================================================= */
+    function startNumberGuessingGame() {
+        state.stage = 'set_secret';
+        state.secrets = { 1: '', 2: '' };
+        state.currentInput = "";
+        state.p1History =[];
+        state.p2History =[];
+        
+        document.getElementById('history-list').innerHTML = "";
+        document.getElementById('set-secret-title').innerText = state.mode === 'local' ? "اللاعب 1" : "تعيين الرقم السري";
+        
+        updateDigitDisplay('sec');
+        updateDigitDisplay('guess');
+        showScreen('num-set-secret-screen');
+    }
+
+    function updateDigitDisplay(prefix) {
+        for (let i = 0; i < 3; i++) {
+            const box = document.getElementById(`${prefix}-dig-${i}`);
+            if (state.currentInput[i]) {
+                box.innerText = state.currentInput[i];
+                box.classList.add('filled');
+            } else {
+                box.innerText = "";
+                box.classList.remove('filled');
+            }
+        }
+    }
+
+    function triggerNumError(prefix) {
+        soundError();
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        for (let i = 0; i < 3; i++) {
+            const box = document.getElementById(`${prefix}-dig-${i}`);
+            box.classList.add('error');
+            setTimeout(() => box.classList.remove('error'), 400);
+        }
+    }
+
+    function handleNumInput(val) {
+        if(state.stage === 'game_over') return;
+        haptic(); soundBeep();
+        const prefix = state.stage === 'set_secret' ? 'sec' : 'guess';
+        
+        if (val === 'clear') {
+            state.currentInput = state.currentInput.slice(0, -1);
+        } else if (state.currentInput.length < 3) {
+            state.currentInput += val.toString();
+        }
+        updateDigitDisplay(prefix);
+    }
+
+    function submitSecret() {
+        if (state.currentInput.length !== 3) { triggerNumError('sec'); return; }
+
+        if (state.mode === 'local') {
+            state.secrets[state.currentPlayer] = state.currentInput;
+            state.currentInput = ""; updateDigitDisplay('sec');
+
+            if (state.currentPlayer === 1) {
+                state.currentPlayer = 2;
+                document.getElementById('pass-device-text').innerText = "مرر الهاتف للاعب 2 لتعيين رقمه السري.";
+                state.passCallback = () => { document.getElementById('set-secret-title').innerText = "اللاعب 2"; };
+                showOverlay('pass-device-overlay');
+            } else {
+                state.currentPlayer = 1; state.stage = 'playing';
+                document.getElementById('pass-device-text').innerText = "اكتمل الإعداد! مرر الهاتف للاعب 1 ليبدأ التخمين.";
+                state.passCallback = () => { startNumTurn(); };
+                showOverlay('pass-device-overlay');
+            }
+        } 
+        else if (state.mode === 'lan') {
+            state.secrets[state.myPlayerId] = state.currentInput; 
+            sendData({ type: 'SECRET_SET', secret: state.currentInput });
+            state.currentInput = ""; updateDigitDisplay('sec');
+
+            if (state.secrets[state.myPlayerId === 1 ? 2 : 1] !== '') {
+                hideOverlay(); state.stage = 'playing'; state.currentPlayer = 1; startNumTurn();
+            } else {
+                showOverlay('waiting-overlay');
+                document.querySelector('#waiting-overlay .subtitle').innerText = "في انتظار الخصم لتعيين رقمه السري...";
+            }
+        }
+    }
+
+    function startNumTurn() {
+        state.currentInput = "";
+        updateDigitDisplay('guess');
+        
+        let indicator = document.getElementById('num-turn-indicator');
+        if(state.mode === 'local') {
+            indicator.innerText = `دور اللاعب ${state.currentPlayer}`;
+        } else {
+            if (state.currentPlayer === state.myPlayerId) {
+                indicator.innerText = "دورك"; hideOverlay();
+            } else {
+                indicator.innerText = "دور الخصم";
+                showOverlay('waiting-overlay');
+                document.querySelector('#waiting-overlay .subtitle').innerText = "الخصم يقوم بالتخمين...";
+                return;
+            }
+        }
+        updateNumHistoryUI();
+        showScreen('num-game-screen');
+    }
+
+    function evaluateGuess(guess, target) {
+        let bulls = 0, cows = 0;
+        let gArr = guess.split(''), tArr = target.split('');
+        for (let i = 0; i < 3; i++) {
+            if (gArr[i] === tArr[i]) { bulls++; gArr[i] = null; tArr[i] = null; }
+        }
+        for (let i = 0; i < 3; i++) {
+            if (gArr[i] !== null) {
+                let matchIdx = tArr.indexOf(gArr[i]);
+                if (matchIdx !== -1) { cows++; tArr[matchIdx] = null; }
+            }
+        }
+        return { bulls, cows };
+    }
+
+    function submitGuess() {
+        if (state.currentInput.length !== 3) { triggerNumError('guess'); return; }
+
+        const guess = state.currentInput;
+        const targetPlayer = state.currentPlayer === 1 ? 2 : 1;
+        const targetSecret = state.secrets[targetPlayer];
+        const { bulls, cows } = evaluateGuess(guess, targetSecret);
+        const historyObj = { guess, bulls, cows };
+
+        if (state.currentPlayer === 1) state.p1History.push(historyObj);
+        else state.p2History.push(historyObj);
+
+        state.currentInput = ""; updateDigitDisplay('guess'); updateNumHistoryUI();
+
+        if (bulls === 3) {
+            let desc = state.mode === 'local' ? `الرقم السري كان ${targetSecret}` : "لقد كسرت الشفرة!";
+            if (state.mode === 'lan') sendData({ type: 'I_WIN', finalGuess: historyObj });
+            handleGameOver(state.currentPlayer, desc);
+        } else {
+            if (state.mode === 'local') {
+                state.currentPlayer = state.currentPlayer === 1 ? 2 : 1;
+                document.getElementById('pass-device-text').innerText = `مرر الهاتف للاعب ${state.currentPlayer}`;
+                state.passCallback = () => { startNumTurn(); };
+                setTimeout(() => showOverlay('pass-device-overlay'), 800);
+            } else {
+                sendData({ type: 'GUESS_MADE', data: historyObj });
+                state.currentPlayer = state.currentPlayer === 1 ? 2 : 1;
+                startNumTurn();
+            }
+        }
+    }
+
+    function updateNumHistoryUI() {
+        const list = document.getElementById('history-list'); list.innerHTML = "";
+        const history = state.currentPlayer === 1 ? state.p1History : state.p2History;
+        
+        history.forEach(item => {
+            let fbTxt = "";
+            if (item.bulls === 3) fbTxt = `<span class="feedback bull">🎯 فوز!</span>`;
+            else if (item.bulls === 0 && item.cows === 0) fbTxt = `<span class="feedback wrong">❌ خاطئ تماماً</span>`;
+            else if (item.bulls === 0 && item.cows > 0) fbTxt = `<span class="feedback cow">⚠️ أرقام صحيحة لكن في المكان الخطأ (${item.cows})</span>`;
+            else fbTxt = `<span class="feedback bull">✅ ${item.bulls} في مكانه (${item.cows} مكان خاطئ)</span>`;
+
+            list.innerHTML += `<div class="history-item">
+                <div class="guess">${item.guess.split('').join(' ')}</div>
+                <div class="feedback">${fbTxt}</div>
+            </div>`;
+        });
+        list.scrollTop = list.scrollHeight;
+    }
+
+
+    /* =========================================================
+       GAME 2: XO (TIC-TAC-TOE)
+       ========================================================= */
+    function startXOGame() {
+        state.xoBoard = Array(9).fill('');
+        document.querySelectorAll('.xo-cell').forEach(c => { 
+            c.innerText = ''; c.className = 'xo-cell'; 
+        });
+        updateXOTurnIndicator();
+        showScreen('xo-screen');
+    }
+
+    function updateXOTurnIndicator() {
+        let indicator = document.getElementById('xo-turn-indicator');
+        if (state.mode === 'local') {
+            indicator.innerText = `دور اللاعب ${state.currentPlayer} (${state.currentPlayer === 1 ? 'X' : 'O'})`;
+        } else {
+            if (state.currentPlayer === state.myPlayerId) {
+                indicator.innerText = "دورك"; hideOverlay();
+            } else {
+                indicator.innerText = "دور الخصم";
+                showOverlay('waiting-overlay');
+                document.querySelector('#waiting-overlay .subtitle').innerText = "الخصم يقوم بخطوته...";
+            }
+        }
+    }
+
+    function makeXOMove(idx) {
+        if (state.xoBoard[idx] !== '' || state.stage === 'game_over') return;
+        if (state.mode === 'lan' && state.currentPlayer !== state.myPlayerId) return;
+
+        haptic(); soundBeep();
+        let symbol = state.currentPlayer === 1 ? 'X' : 'O';
+        state.xoBoard[idx] = symbol;
+        
+        let cell = document.getElementById('xo-'+idx);
+        cell.innerText = symbol;
+        cell.classList.add(symbol.toLowerCase());
+        
+        if (checkXOWin()) return;
+
+        if (state.mode === 'lan') {
+            sendData({ type: 'XO_MOVE', index: idx });
+        }
+        
+        state.currentPlayer = state.currentPlayer === 1 ? 2 : 1;
+        updateXOTurnIndicator();
+    }
+
+    function receiveXOMove(idx) {
+        let oppId = state.myPlayerId === 1 ? 2 : 1;
+        let symbol = oppId === 1 ? 'X' : 'O';
+        state.xoBoard[idx] = symbol;
+        
+        let cell = document.getElementById('xo-'+idx);
+        cell.innerText = symbol;
+        cell.classList.add(symbol.toLowerCase());
+        
+        if (checkXOWin()) return;
+        
+        state.currentPlayer = state.myPlayerId;
+        updateXOTurnIndicator();
+    }
+
+    function checkXOWin() {
+        const patterns = [ [0,1,2],[3,4,5], [6,7,8], [0,3,6], [1,4,7],[2,5,8], [0,4,8], [2,4,6] ];
+        for (let p of patterns) {
+            const [a, b, c] = p;
+            if (state.xoBoard[a] && state.xoBoard[a] === state.xoBoard[b] && state.xoBoard[a] === state.xoBoard[c]) {
+                document.getElementById('xo-'+a).classList.add('win');
+                document.getElementById('xo-'+b).classList.add('win');
+                document.getElementById('xo-'+c).classList.add('win');
+                handleGameOver(state.currentPlayer, `حقق خطاً بـ ${state.xoBoard[a]}`);
+                return true;
+            }
+        }
+        if (!state.xoBoard.includes('')) {
+            handleGameOver('draw', 'اللوحة ممتلئة ولا يوجد فائز!');
+            return true;
+        }
+        return false;
+    }
+
+
+    /* =========================================================
+       GAME 3: ROCK PAPER SCISSORS (RPS)
+       ========================================================= */
+    function startRPSGame() {
+        state.rpsChoices = { 1: null, 2: null };
+        document.querySelectorAll('.rps-btn').forEach(b => b.classList.remove('selected'));
+        updateRPSTurnIndicator();
+        showScreen('rps-screen');
+    }
+
+    function updateRPSTurnIndicator() {
+        let indicator = document.getElementById('rps-turn-indicator');
+        if (state.mode === 'local') {
+            indicator.innerText = `اللاعب ${state.currentPlayer}: اختر حركتك`;
+        } else {
+            indicator.innerText = "اختر حركتك";
+        }
+    }
+
+    function selectRPS(choice) {
+        haptic(); soundBeep();
+        
+        if (state.mode === 'local') {
+            state.rpsChoices[state.currentPlayer] = choice;
+            if (state.currentPlayer === 1) {
+                state.currentPlayer = 2;
+                document.getElementById('pass-device-text').innerText = "تم الاختيار! مرر الهاتف للاعب 2 ليختار.";
+                state.passCallback = () => { updateRPSTurnIndicator(); };
+                showOverlay('pass-device-overlay');
+            } else {
+                resolveRPS();
+            }
+        } 
+        else { // LAN
+            state.rpsChoices[state.myPlayerId] = choice;
+            sendData({ type: 'RPS_CHOICE', choice: choice });
+            
+            if (state.rpsChoices[state.myPlayerId === 1 ? 2 : 1]) {
+                resolveRPS(); // Opponent already picked
+            } else {
+                showOverlay('waiting-overlay');
+                document.querySelector('#waiting-overlay .subtitle').innerText = "في انتظار اختيار الخصم...";
+            }
+        }
+    }
+
+    function resolveRPS() {
+        hideOverlay();
+        let c1 = state.rpsChoices[1];
+        let c2 = state.rpsChoices[2];
+        let mapText = { rock: 'حجر🪨', paper: 'ورقة📄', scissors: 'مقص✂️' };
+        
+        if (c1 === c2) {
+            handleGameOver('draw', `كلاكما اختار ${mapText[c1]}`);
+            return;
+        }
+        
+        let p1Wins = (c1==='rock' && c2==='scissors') || (c1==='paper' && c2==='rock') || (c1==='scissors' && c2==='paper');
+        let winnerId = p1Wins ? 1 : 2;
+        let wChoice = p1Wins ? c1 : c2;
+        let lChoice = p1Wins ? c2 : c1;
+        
+        handleGameOver(winnerId, `${mapText[wChoice]} يهزم ${mapText[lChoice]}`);
+    }
+
+
+    /* =========================================================
+       LAN WebRTC (PeerJS) FLOW
+       ========================================================= */
+    window.onload = () => {
+        if (typeof Peer === 'undefined') {
+            document.getElementById('lan-container').style.display = 'none';
+            showToast("وضع عدم الاتصال. متاح فقط اللعب محلياً.");
+        }
+    };
+
+    function initHostPeer() {
+        const roomCode = Math.floor(10000 + Math.random() * 90000).toString();
+        peer = new Peer('numclash-' + roomCode);
+        
+        peer.on('open', () => {
+            document.getElementById('host-code-display').innerText = roomCode;
+            showScreen('host-screen');
+        });
+
+        peer.on('connection', (connection) => {
+            conn = connection;
+            setupLANConnection(1); // Host is P1
+        });
+
+        peer.on('error', (err) => {
+            showToast("خطأ في الشبكة: " + err.type);
+            showScreen('menu-screen');
+        });
+    }
+
+    function joinLAN() {
+        const input = document.getElementById('room-code-input').value;
+        if(input.length !== 5) { showToast("أدخل رمزاً من 5 أرقام"); return; }
+
+        peer = new Peer();
+        peer.on('open', () => {
+            conn = peer.connect('numclash-' + input);
+            setupLANConnection(2); // Joiner is P2
+        });
+        
+        peer.on('error', () => { showToast("فشل الاتصال. تحقق من الرمز."); });
+    }
+
+    function cancelHost() {
+        if(peer) { peer.destroy(); peer = null; }
+        showScreen('menu-screen');
+    }
+
+    function setupLANConnection(playerId) {
+        state.myPlayerId = playerId;
+
+        conn.on('open', () => {
+            showToast("تم الاتصال بنجاح!");
+            if (state.myPlayerId === 1) { // Host
+                sendData({ type: 'INIT_GAME', gameType: state.gameType });
+                startGameRouting(state.gameType);
+            } else { // Joiner
+                showOverlay('waiting-overlay');
+                document.querySelector('#waiting-overlay .subtitle').innerText = "يتم تهيئة اللعبة...";
+            }
+        });
+
+        conn.on('data', (payload) => { handleLANData(payload); });
+
+        conn.on('close', () => {
+            alert("انقطع اتصال الخصم.");
+            returnToMenu();
+        });
+    }
+
+    function sendData(data) {
+        if (conn && conn.open) conn.send(data);
+    }
+
+    function handleLANData(payload) {
+        const oppId = state.myPlayerId === 1 ? 2 : 1;
+
+        switch (payload.type) {
+            case 'INIT_GAME':
+                state.gameType = payload.gameType;
+                startGameRouting(state.gameType);
+                break;
+            case 'PLAY_AGAIN':
+                startGameRouting(state.gameType);
+                break;
+                
+            /* -- Number Game -- */
+            case 'SECRET_SET':
+                state.secrets[oppId] = payload.secret; 
+                if (state.secrets[state.myPlayerId] !== '') {
+                    hideOverlay(); state.stage = 'playing'; state.currentPlayer = 1; startNumTurn();
+                }
+                break;
+            case 'GUESS_MADE':
+                if (oppId === 1) state.p1History.push(payload.data);
+                else state.p2History.push(payload.data);
+                state.currentPlayer = state.myPlayerId;
+                startNumTurn();
+                break;
+            case 'I_WIN':
+                if (payload.finalGuess) {
+                    if (oppId === 1) state.p1History.push(payload.finalGuess);
+                    else state.p2History.push(payload.finalGuess);
+                    updateNumHistoryUI();
+                }
+                handleGameOver(oppId, `قام الخصم بكسر شفرتك: ${state.secrets[state.myPlayerId]}`);
+                break;
+                
+            /* -- XO Game -- */
+            case 'XO_MOVE':
+                receiveXOMove(payload.index);
+                break;
+
+            /* -- RPS Game -- */
+            case 'RPS_CHOICE':
+                state.rpsChoices[oppId] = payload.choice;
+                if(state.rpsChoices[state.myPlayerId]) resolveRPS();
+                break;
+        }
+    }
+</script>
+</body>
+</html>
