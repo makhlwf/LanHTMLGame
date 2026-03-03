@@ -2,6 +2,8 @@
 i made that to play with my bro in a free time and i thought it will be good if i share the code so if one wanted a good foundation on how to make local lan games using HTML and JS
 the code is very simple and easy to learn for newbies, *like me*
 it has 3 games for you to injoy
+## demo
+there is a live demo at [this URL](makhlwf.github.io/LanHTMLGame), use it if you can't host the game yourself
 ## how to set up
 you can set up this in many ways but here is what i do
 1. ensure that you have python installed on your PC
